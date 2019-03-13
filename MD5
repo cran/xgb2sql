@@ -1,0 +1,12 @@
+64d6d734ef317c06a524c920c575a198 *DESCRIPTION
+0383a01816a2892748c9352a92245c66 *LICENSE
+aa4b51d30febc8ebe20c3a61c736e661 *NAMESPACE
+17dbda784a4e0c1ecb0c82b9866ad5ac *R/booster2sql.R
+eab1a5cef2b19fdb9f6fff6fa07e7a2d *R/onehot2sql.R
+ae7b9882dc23d5647bed98a519e0b888 *build/vignette.rds
+d619907534e91ece53e407083d36787a *inst/doc/xgb2sql.R
+bf70deba4c8f5c6bb86ead10f7c1e91c *inst/doc/xgb2sql.Rmd
+4508be442af1ddb6e0069ce6f490c0df *inst/doc/xgb2sql.html
+811fbaa42d44cf7e95cc1bec1b92b4da *man/booster2sql.Rd
+dfaa6971b89978d5ab111e44d9502fbb *man/onehot2sql.Rd
+bf70deba4c8f5c6bb86ead10f7c1e91c *vignettes/xgb2sql.Rmd
