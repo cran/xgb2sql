@@ -12,8 +12,8 @@ booster2sql(xgbModel, print_progress = FALSE, unique_id = NULL,
 \item{xgbModel}{The trained model object of class \code{xgb.Booster}.
 Current supported booster is \code{booster="gbtree"}, supported \code{objective} options are:
 \itemize{
-  \item – \code{reg:linear}: linear regression.
-  \item – \code{reg:logistic}: logistic regression.
+  \item – \code{reg:squarederror}: regression with squared loss.
+  \item – \code{reg:logistic}: logistic regression, output probability.
   \item - \code{binary:logistic}: logistic regression for binary classification, output probability.
   \item – \code{binary:logitraw}: logistic regression for binary classification, output score before logistic transformation.
   \item - \code{binary:hinge}: hinge loss for binary classification. This makes predictions of 0 or 1, rather than producing probabilities.
@@ -26,7 +26,7 @@ Current supported booster is \code{booster="gbtree"}, supported \code{objective}
 
 \item{unique_id}{A row unique identifier is crucial for in-database scoring of XGBoost model. If not given, SQL query will be generated with id name "ROW_KEY".}
 
-\item{output_file_name}{File name that the SQL syntax will write to. It must not be empty in order for this function to run.}
+\item{output_file_name}{File name that the SQL syntax will write to. If empty the query will be printed to console.}
 
 \item{input_table_name}{Name of raw data table in the database, that the SQL query will select from. If not given, SQL query will be generated with table name "MODREADY_TABLE".}
 
@@ -56,14 +56,14 @@ x <- out$model.matrix[,colnames(out$model.matrix)!='price']
 y <- out$model.matrix[,colnames(out$model.matrix)=='price']
 
 # model training
-bst <- xgboost(data = x,
-               label = y,
-               max.depth = 3,
-               eta = .3,
-               nround = 5,
-               nthread = 1,
-               objective = 'reg:linear')
+bst <- xgboost(x = x,
+               y = y,
+               max_depth = 3,
+               learning_rate = .3,
+               nrounds = 5,
+               nthreads = 1,
+               objective = 'reg:squarederror')
 
 # generate model scoring SQL script with ROW_KEY and MODREADY_TABLE
-booster2sql(bst, output_file_name='xgb.txt')
+booster2sql(bst)
 }

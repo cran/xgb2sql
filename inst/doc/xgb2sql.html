@@ -1,24 +1,41 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Chengjun Hou, Abhishek Bishoyi" />
 
-<meta name="date" content="2019-03-08" />
+<meta name="date" content="2025-12-12" />
 
 <title>Deploy XGBoost Model as SQL Query</title>
 
 
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
 
-<style type="text/css">code{white-space: pre;}</style>
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
 <style type="text/css" data-origin="pandoc">
 div.sourceCode { overflow-x: auto; }
 table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
@@ -64,13 +81,20 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
   for (var i = 0; i < sheets.length; i++) {
     if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
     try { var rules = sheets[i].cssRules; } catch (e) { continue; }
-    for (var j = 0; j < rules.length; j++) {
+    var j = 0;
+    while (j < rules.length) {
       var rule = rules[j];
       // check if there is a div.sourceCode rule
-      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
       var style = rule.style.cssText;
       // check if color or background-color is set
-      if (rule.style.color === '' || rule.style.backgroundColor === '') continue;
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
       // replace div.sourceCode by a pre.sourceCode rule
       sheets[i].deleteRule(j);
       sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
@@ -81,7 +105,11 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 
-<link href="data:text/css;charset=utf-8,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20700px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%201%2E35%3B%0A%7D%0A%23header%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%2010px%3B%0Apadding%3A%204px%3B%0Awidth%3A%20400px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%20%7B%0Amargin%3A%201em%20auto%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%200%2E25em%200%2E75em%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0Awhite%2Dspace%3A%20pre%2Dwrap%3B%20%0A%7D%0Apre%20%7B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200px%2010px%200px%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0Afont%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%200px%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%3A%201px%20solid%20%23DDDDDD%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%20code%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" rel="stylesheet" type="text/css" />
+
+<link href="data:text/css;charset=utf-8,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20700px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%201%2E35%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%2010px%3B%0Apadding%3A%204px%3B%0Awidth%3A%20400px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%20%7B%0Amargin%3A%201em%20auto%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%200%2E25em%200%2E75em%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0Awhite%2Dspace%3A%20pre%2Dwrap%3B%20%0A%7D%0Apre%20%7B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200px%2010px%200px%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0Afont%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%200px%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%3A%201px%20solid%20%23DDDDDD%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" rel="stylesheet" type="text/css" />
+
+
+
 
 </head>
 
@@ -91,13 +119,13 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Deploy XGBoost Model as SQL Query</h1>
-<h4 class="author"><em>Chengjun Hou, Abhishek Bishoyi</em></h4>
-<h4 class="date"><em>2019-03-08</em></h4>
+<h4 class="author">Chengjun Hou, Abhishek Bishoyi</h4>
+<h4 class="date">2025-12-12</h4>
 
 
 
 <p>You fit a boosting tree model in R with your favourite package <code>xgboost</code>, the validation results looks great, so next question comes up as how to deploy this model into production so that others could utilize it to help with the business. Incorporating the model into a shiny app would certainly be a good idea, but sometimes the model needs to be integrated into some other systems that the company is heavily relied on. Plus moving large amount of data between database and R could be time and memory consuming. So we propose R package <code>xgb2sql</code> enabling in-database scoring of XGBoost models built in R by translating trained model objects into SQL query.</p>
-<p><a href="https://CRAN.R-project.org/view=ModelDeployment">CRAN Task View: Model Deployment with R</a> categorizes the process of deploying models to various environments for scoring or inferencing on new data into two categories. The first category is <strong>Deployment through Different Types of Artifacts</strong>, which basically means exporting the model as an object, then using supported software/platform to consume this object scoring out the model predictions. The other category is <strong>Deployment through Cloud/Server</strong>, which includes a). providing an R interface to third-party managed services such as <a href="https://cloud.google.com/ml-engine/">Google Cloud Machine Learning Engine</a>; b). turning R code into web API and opening service on the server. Our approach provides SQL query producing model predictions, which can be taken as a combination of the model itself plus the scoring process. The output SQL query can be treated as an artifact, but we can easily set up service for it on the database server.</p>
+<p><a href="https://CRAN.R-project.org/view=ModelDeployment">CRAN Task View: Model Deployment with R</a> categorizes the process of deploying models to various environments for scoring or inferencing on new data into two categories. The first category is <strong>Deployment through Different Types of Artifacts</strong>, which basically means exporting the model as an object, then using supported software/platform to consume this object scoring out the model predictions. The other category is <strong>Deployment through Cloud/Server</strong>, which includes a). providing an R interface to third-party managed services such as Google Cloud Machine Learning Engine (now integrated into Vertex AI); b). turning R code into web API and opening service on the server. Our approach provides SQL query producing model predictions, which can be taken as a combination of the model itself plus the scoring process. The output SQL query can be treated as an artifact, but we can easily set up service for it on the database server.</p>
 <p>The SQL query generated by this tool is basic enough to be compatible with all SQL-based database products and services. Other than this tool, there are two R packages providing modeling and predicting capability inside database:</p>
 <ul>
 <li>Package <code>ibmdbR</code> offers modeling and predicting capability for naive-Bayes, linear regression, decision tree, association rules, and K-means clustering. But the only supported database product and service is IBM DB2.</li>
@@ -110,7 +138,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 </ul>
 <div id="data" class="section level2">
 <h2>Prepare Data in Both R and Database</h2>
-<p>As we know, <code>xgboost</code> only consumes numeric input for its model fitting function <a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a>. So after transferring raw table in database to R as a data.frame/data.table, same one-hot encoding needs to be performed on both the table and the data.frame/data.table. Here we have function <code>onehot2sql()</code> to perform one-hot encoding on the training data in R, producing at the same the SQL query performing the exact transformation for the raw table in database. Let’s start with loading the sample dataset from <code>ggplot2</code>:</p>
+<p>As we know, <code>xgboost</code> only consumes numeric input for its model fitting function. So after transferring raw table in database to R as a data.frame/data.table, same one-hot encoding needs to be performed on both the table and the data.frame/data.table. Here we have function <code>onehot2sql()</code> to perform one-hot encoding on the training data in R, producing at the same the SQL query performing the exact transformation for the raw table in database. Let's start with loading the sample dataset from <code>ggplot2</code>:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(data.table)
 <span class="kw">library</span>(xgboost)
 <span class="kw">library</span>(xgb2sql)
@@ -126,8 +154,8 @@ df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(ggplot2<span
 <p>Funtion <code>onehot2sql()</code> is built upon base R functions <code>model.frame()</code> and <code>model.matrix()</code>. Other than consuming a data.frame as input, this function has been optimized to work with a data.table with greater efficiency. It outputs a matrix ready for model fitting following rules listed below:</p>
 <ol style="list-style-type: decimal">
 <li><p>The function treats any non-numeric columns, i.e., columns with class not being <code>numeric</code> and <code>integer</code>, as categorical and performs one-hot encoding for them.</p></li>
-<li><p>The one-hot encoding doesn’t remove one feature-level combination for each categorical feature, as <code>model.matrix</code> does in order to avoid issues caused by multicollinearity. Although the output matrix conveys same amount of information with and without one feature-level combination removed, thus producing similar model performance, system knowledge gained along this modeling practice is very different. If let’s say the “cut” of diamonds being “Ideal” has a huge impact on its price as the target/response, removing binary column “cut.Ideal” in the output matrix would result in the predictive power of “cut.Ideal” being scattered among other “cut” columns <a href="#fn2" class="footnoteRef" id="fnref2"><sup>2</sup></a>. The model performance would be comparative, but we would miss the information that “cut” being “Ideal” is the dominate factor of price, by studying the variable importance. So as multicollinearity wouldn’t be a problem for tree-based model <a href="#fn3" class="footnoteRef" id="fnref3"><sup>3</sup></a>, we believe performing full one-hot encoding is more appropriate for XGBoost modeling.</p></li>
-<li><p>The function keeps NAs inside both categorical and numeric features preserved. As pointed by the author of <code>xgboost</code>, the algorithm will automatically learn what is the best direction to go when a value is missing, which can be viewed as automatically “learn” what is the best imputation value for missing values based on reduction on training loss <a href="#fn4" class="footnoteRef" id="fnref4"><sup>4</sup></a>. This is one of the reasons of XGBoost being so powerful, so we are keeping all NAs in the output matrix.</p></li>
+<li><p>The one-hot encoding doesn't remove one feature-level combination for each categorical feature, as <code>model.matrix</code> does in order to avoid issues caused by multicollinearity. Although the output matrix conveys same amount of information with and without one feature-level combination removed, thus producing similar model performance, system knowledge gained along this modeling practice is very different. If let's say the &quot;cut&quot; of diamonds being &quot;Ideal&quot; has a huge impact on its price as the target/response, removing binary column &quot;cut.Ideal&quot; in the output matrix would result in the predictive power of &quot;cut.Ideal&quot; being scattered among other &quot;cut&quot; columns <a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a>. The model performance would be comparative, but we would miss the information that &quot;cut&quot; being &quot;Ideal&quot; is the dominate factor of price, by studying the variable importance. So as multicollinearity wouldn't be a problem for tree-based model <a href="#fn2" class="footnoteRef" id="fnref2"><sup>2</sup></a>, we believe performing full one-hot encoding is more appropriate for XGBoost modeling.</p></li>
+<li><p>The function keeps NAs inside both categorical and numeric features preserved. As pointed by the author of <code>xgboost</code>, the algorithm will automatically learn what is the best direction to go when a value is missing, which can be viewed as automatically &quot;learn&quot; what is the best imputation value for missing values based on reduction on training loss <a href="#fn3" class="footnoteRef" id="fnref3"><sup>3</sup></a>. This is one of the reasons of XGBoost being so powerful, so we are keeping all NAs in the output matrix.</p></li>
 <li><p>The function outputs <code>meta</code> information tracking all the levels for each categorical feature. If it is given to the function as an input, the exact feature-level combinations will be populated, even if the new data is missing one level for a particular categorical feature, or having a new level never seen before.</p></li>
 </ol>
 <p>Available arguments of this function are, which will be explained with examples:</p>
@@ -139,8 +167,10 @@ df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(ggplot2<span
 <li>matrix <code>model.matrix</code> being the data after processing which is ready for XGBoost fitting.</li>
 <li>SQL query <code>sql</code> performing the exact one-hot encoding in the database.</li>
 </ol>
-<p>So let’ take a look of its basic usage:</p>
+<p>So let' take a look of its basic usage:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">out &lt;-<span class="st"> </span><span class="kw">onehot2sql</span>(df)
+<span class="co">#&gt; Query is created with row unique id named as ROW_KEY</span>
+<span class="co">#&gt; Query is created with input table named as INPUT_TABLE</span>
 <span class="kw">print</span>(out<span class="op">$</span>meta)
 <span class="co">#&gt; $num.vec</span>
 <span class="co">#&gt; [1] &quot;carat&quot; &quot;depth&quot; &quot;table&quot; &quot;price&quot; &quot;x&quot;     &quot;y&quot;     &quot;z&quot;    </span>
@@ -178,35 +208,35 @@ df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(ggplot2<span
 <span class="co">#&gt; VVS1  0   0   0   0   0    0    1  0</span>
 <span class="co">#&gt; IF    0   0   0   0   0    0    0  1</span>
 <span class="kw">head</span>(out<span class="op">$</span>model.matrix)
-<span class="co">#&gt;   (Intercept) carat clarity_I1 clarity_IF clarity_SI1 clarity_SI2</span>
-<span class="co">#&gt; 1           1  0.23          0          0           0           1</span>
-<span class="co">#&gt; 2           1  0.21          0          0           1           0</span>
-<span class="co">#&gt; 3           1  0.23          0          0           0           0</span>
-<span class="co">#&gt; 4           1  0.29          0          0           0           0</span>
-<span class="co">#&gt; 5           1  0.31          0          0           0           1</span>
-<span class="co">#&gt; 6           1  0.24          0          0           0           0</span>
-<span class="co">#&gt;   clarity_VS1 clarity_VS2 clarity_VVS1 clarity_VVS2 color_D color_E</span>
-<span class="co">#&gt; 1           0           0            0            0       0       1</span>
-<span class="co">#&gt; 2           0           0            0            0       0       1</span>
-<span class="co">#&gt; 3           1           0            0            0       0       1</span>
-<span class="co">#&gt; 4           0           1            0            0       0       0</span>
-<span class="co">#&gt; 5           0           0            0            0       0       0</span>
-<span class="co">#&gt; 6           0           0            0            1       0       0</span>
-<span class="co">#&gt;   color_F color_G color_H color_I color_J cut_Fair cut_Good cut_Ideal</span>
-<span class="co">#&gt; 1       0       0       0       0       0        0        0         1</span>
-<span class="co">#&gt; 2       0       0       0       0       0        0        0         0</span>
-<span class="co">#&gt; 3       0       0       0       0       0        0        1         0</span>
-<span class="co">#&gt; 4       0       0       0       1       0        0        0         0</span>
-<span class="co">#&gt; 5       0       0       0       0       1        0        1         0</span>
-<span class="co">#&gt; 6       0       0       0       0       1        0        0         0</span>
-<span class="co">#&gt;   cut_Premium cut_VeryGood depth price table    x    y    z</span>
-<span class="co">#&gt; 1           0            0  61.5   326    55 3.95 3.98 2.43</span>
-<span class="co">#&gt; 2           1            0  59.8   326    61 3.89 3.84 2.31</span>
-<span class="co">#&gt; 3           0            0  56.9   327    65 4.05 4.07 2.31</span>
-<span class="co">#&gt; 4           1            0  62.4   334    58 4.20 4.23 2.63</span>
-<span class="co">#&gt; 5           0            0  63.3   335    58 4.34 4.35 2.75</span>
-<span class="co">#&gt; 6           0            1  62.8   336    57 3.94 3.96 2.48</span></code></pre></div>
-<p>It should be noted that level “Very Good” for feature “cut” has been replaced with “VeryGood”, with the white-space removed. This behaviour is controlled by function arguments <code>ws_replace=TRUE</code> and <code>ws_replace_with=&quot;&quot;</code>, where other symbol can be specified to replace the white-space inside levels of categorical features. Such processing is very necessary as SQL database usually doesn’t allow white-space inside its table column names. And symbol separating the feature and its levels is controlled by <code>sep=&quot;_&quot;</code>. The output model.matrix would have all its columns reordered alphabetically.</p>
+<span class="co">#&gt;   (Intercept) carat clarity_I1 clarity_IF clarity_SI1 clarity_SI2 clarity_VS1</span>
+<span class="co">#&gt; 1           1  0.23          0          0           0           1           0</span>
+<span class="co">#&gt; 2           1  0.21          0          0           1           0           0</span>
+<span class="co">#&gt; 3           1  0.23          0          0           0           0           1</span>
+<span class="co">#&gt; 4           1  0.29          0          0           0           0           0</span>
+<span class="co">#&gt; 5           1  0.31          0          0           0           1           0</span>
+<span class="co">#&gt; 6           1  0.24          0          0           0           0           0</span>
+<span class="co">#&gt;   clarity_VS2 clarity_VVS1 clarity_VVS2 color_D color_E color_F color_G color_H</span>
+<span class="co">#&gt; 1           0            0            0       0       1       0       0       0</span>
+<span class="co">#&gt; 2           0            0            0       0       1       0       0       0</span>
+<span class="co">#&gt; 3           0            0            0       0       1       0       0       0</span>
+<span class="co">#&gt; 4           1            0            0       0       0       0       0       0</span>
+<span class="co">#&gt; 5           0            0            0       0       0       0       0       0</span>
+<span class="co">#&gt; 6           0            0            1       0       0       0       0       0</span>
+<span class="co">#&gt;   color_I color_J cut_Fair cut_Good cut_Ideal cut_Premium cut_VeryGood depth</span>
+<span class="co">#&gt; 1       0       0        0        0         1           0            0  61.5</span>
+<span class="co">#&gt; 2       0       0        0        0         0           1            0  59.8</span>
+<span class="co">#&gt; 3       0       0        0        1         0           0            0  56.9</span>
+<span class="co">#&gt; 4       1       0        0        0         0           1            0  62.4</span>
+<span class="co">#&gt; 5       0       1        0        1         0           0            0  63.3</span>
+<span class="co">#&gt; 6       0       1        0        0         0           0            1  62.8</span>
+<span class="co">#&gt;   price table    x    y    z</span>
+<span class="co">#&gt; 1   326    55 3.95 3.98 2.43</span>
+<span class="co">#&gt; 2   326    61 3.89 3.84 2.31</span>
+<span class="co">#&gt; 3   327    65 4.05 4.07 2.31</span>
+<span class="co">#&gt; 4   334    58 4.20 4.23 2.63</span>
+<span class="co">#&gt; 5   335    58 4.34 4.35 2.75</span>
+<span class="co">#&gt; 6   336    57 3.94 3.96 2.48</span></code></pre></div>
+<p>It should be noted that level &quot;Very Good&quot; for feature &quot;cut&quot; has been replaced with &quot;VeryGood&quot;, with the white-space removed. This behaviour is controlled by function arguments <code>ws_replace=TRUE</code> and <code>ws_replace_with=&quot;&quot;</code>, where other symbol can be specified to replace the white-space inside levels of categorical features. Such processing is very necessary as SQL database usually doesn't allow white-space inside its table column names. And symbol separating the feature and its levels is controlled by <code>sep=&quot;_&quot;</code>. The output model.matrix would have all its columns reordered alphabetically.</p>
 <p>The SQL query performing one-hot encoding for the raw table is:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">cat</span>(out<span class="op">$</span>sql)
 <span class="co">#&gt; SELECT ROW_KEY, [carat], [depth], [table], [price], [x], [y], [z], </span>
@@ -231,8 +261,8 @@ df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(ggplot2<span
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VVS1' then 1 else 0 end) AS [clarity_VVS1], </span>
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'IF' then 1 else 0 end) AS [clarity_IF] </span>
 <span class="co">#&gt; FROM INPUT_TABLE</span></code></pre></div>
-<p>We want to emphasise here that <strong>an unique row identifier</strong> inside the raw table is crucial for in-database scoring of XGBoost model. Column name of the identifier can be specified by the function argument <code>unique_id</code>, which will be passed along to the table after one-hot encoding. If it is not given, SQL query will be populated with column name “ROW_KEY” for the identifier. Similarly, “INPUT_TABLE” is used in the query if name of the raw table <code>input_table_name</code> is <code>NULL</code>. Given a valid value, the SQL query will be written to the file specified by <code>output_file_name</code>.</p>
-<p>Let’s have another example with NAs and a date column:</p>
+<p>We want to emphasise here that <strong>an unique row identifier</strong> inside the raw table is crucial for in-database scoring of XGBoost model. Column name of the identifier can be specified by the function argument <code>unique_id</code>, which will be passed along to the table after one-hot encoding. If it is not given, SQL query will be populated with column name &quot;ROW_KEY&quot; for the identifier. Similarly, &quot;INPUT_TABLE&quot; is used in the query if name of the raw table <code>input_table_name</code> is <code>NULL</code>. Given a valid value, the SQL query will be written to the file specified by <code>output_file_name</code>.</p>
+<p>Let's have another example with NAs and a date column:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">d2 &lt;-<span class="st"> </span><span class="kw">data.table</span>(ggplot2<span class="op">::</span>diamonds)
 <span class="co"># change column class</span>
 d2[, cut<span class="op">:</span><span class="er">=</span><span class="kw">factor</span>(cut, <span class="dt">ordered=</span><span class="ot">FALSE</span>)]
@@ -244,58 +274,47 @@ d2[<span class="dv">1</span><span class="op">:</span><span class="dv">3</span>, 
 d2[<span class="dv">1</span>, clarity<span class="op">:</span><span class="er">=</span><span class="ot">NA</span>]
 d2[<span class="dv">2</span>, depth<span class="op">:</span><span class="er">=</span><span class="ot">NA</span>]
 <span class="kw">head</span>(d2)
-<span class="co">#&gt;    carat       cut color clarity depth table price    x    y    z</span>
-<span class="co">#&gt; 1:  0.23     Ideal     E    &lt;NA&gt;  61.5    55   326 3.95 3.98 2.43</span>
-<span class="co">#&gt; 2:  0.21   Premium     E     SI1    NA    61   326 3.89 3.84 2.31</span>
-<span class="co">#&gt; 3:  0.23      Good     E     VS1  56.9    65   327 4.05 4.07 2.31</span>
-<span class="co">#&gt; 4:  0.29   Premium     I     VS2  62.4    58   334 4.20 4.23 2.63</span>
-<span class="co">#&gt; 5:  0.31      Good     J     SI2  63.3    58   335 4.34 4.35 2.75</span>
-<span class="co">#&gt; 6:  0.24 Very Good     J    VVS2  62.8    57   336 3.94 3.96 2.48</span>
-<span class="co">#&gt;          tsdt</span>
-<span class="co">#&gt; 1: 2017-01-04</span>
-<span class="co">#&gt; 2: 2017-01-04</span>
-<span class="co">#&gt; 3: 2017-01-04</span>
-<span class="co">#&gt; 4: 2017-01-05</span>
-<span class="co">#&gt; 5: 2017-01-05</span>
-<span class="co">#&gt; 6: 2017-01-05</span>
+<span class="co">#&gt;    carat       cut color clarity depth table price     x     y     z       tsdt</span>
+<span class="co">#&gt;    &lt;num&gt;    &lt;fctr&gt; &lt;ord&gt;  &lt;char&gt; &lt;num&gt; &lt;num&gt; &lt;int&gt; &lt;num&gt; &lt;num&gt; &lt;num&gt;     &lt;IDat&gt;</span>
+<span class="co">#&gt; 1:  0.23     Ideal     E    &lt;NA&gt;  61.5    55   326  3.95  3.98  2.43 2017-01-04</span>
+<span class="co">#&gt; 2:  0.21   Premium     E     SI1    NA    61   326  3.89  3.84  2.31 2017-01-04</span>
+<span class="co">#&gt; 3:  0.23      Good     E     VS1  56.9    65   327  4.05  4.07  2.31 2017-01-04</span>
+<span class="co">#&gt; 4:  0.29   Premium     I     VS2  62.4    58   334  4.20  4.23  2.63 2017-01-05</span>
+<span class="co">#&gt; 5:  0.31      Good     J     SI2  63.3    58   335  4.34  4.35  2.75 2017-01-05</span>
+<span class="co">#&gt; 6:  0.24 Very Good     J    VVS2  62.8    57   336  3.94  3.96  2.48 2017-01-05</span>
 out2 &lt;-<span class="st"> </span><span class="kw">onehot2sql</span>(d2)
+<span class="co">#&gt; Query is created with row unique id named as ROW_KEY</span>
+<span class="co">#&gt; Query is created with input table named as INPUT_TABLE</span>
 <span class="kw">head</span>(out2<span class="op">$</span>model.matrix)
-<span class="co">#&gt;   (Intercept) carat clarity_I1 clarity_IF clarity_SI1 clarity_SI2</span>
-<span class="co">#&gt; 1           1  0.23         NA         NA          NA          NA</span>
-<span class="co">#&gt; 2           1  0.21          0          0           1           0</span>
-<span class="co">#&gt; 3           1  0.23          0          0           0           0</span>
-<span class="co">#&gt; 4           1  0.29          0          0           0           0</span>
-<span class="co">#&gt; 5           1  0.31          0          0           0           1</span>
-<span class="co">#&gt; 6           1  0.24          0          0           0           0</span>
-<span class="co">#&gt;   clarity_VS1 clarity_VS2 clarity_VVS1 clarity_VVS2 color_D color_E</span>
-<span class="co">#&gt; 1          NA          NA           NA           NA       0       1</span>
-<span class="co">#&gt; 2           0           0            0            0       0       1</span>
-<span class="co">#&gt; 3           1           0            0            0       0       1</span>
-<span class="co">#&gt; 4           0           1            0            0       0       0</span>
-<span class="co">#&gt; 5           0           0            0            0       0       0</span>
-<span class="co">#&gt; 6           0           0            0            1       0       0</span>
-<span class="co">#&gt;   color_F color_G color_H color_I color_J cut_Fair cut_Good cut_Ideal</span>
-<span class="co">#&gt; 1       0       0       0       0       0        0        0         1</span>
-<span class="co">#&gt; 2       0       0       0       0       0        0        0         0</span>
-<span class="co">#&gt; 3       0       0       0       0       0        0        1         0</span>
-<span class="co">#&gt; 4       0       0       0       1       0        0        0         0</span>
-<span class="co">#&gt; 5       0       0       0       0       1        0        1         0</span>
-<span class="co">#&gt; 6       0       0       0       0       1        0        0         0</span>
-<span class="co">#&gt;   cut_Premium cut_VeryGood depth price table tsdt_20170104 tsdt_20170105</span>
-<span class="co">#&gt; 1           0            0  61.5   326    55             1             0</span>
-<span class="co">#&gt; 2           1            0    NA   326    61             1             0</span>
-<span class="co">#&gt; 3           0            0  56.9   327    65             1             0</span>
-<span class="co">#&gt; 4           1            0  62.4   334    58             0             1</span>
-<span class="co">#&gt; 5           0            0  63.3   335    58             0             1</span>
-<span class="co">#&gt; 6           0            1  62.8   336    57             0             1</span>
-<span class="co">#&gt;      x    y    z</span>
-<span class="co">#&gt; 1 3.95 3.98 2.43</span>
-<span class="co">#&gt; 2 3.89 3.84 2.31</span>
-<span class="co">#&gt; 3 4.05 4.07 2.31</span>
-<span class="co">#&gt; 4 4.20 4.23 2.63</span>
-<span class="co">#&gt; 5 4.34 4.35 2.75</span>
-<span class="co">#&gt; 6 3.94 3.96 2.48</span></code></pre></div>
-<p>Then let’s look at when <code>meta</code> is given to data with new elements, whether <code>onehot2sql()</code> will output model.matrix with identical columns as the training data, in order to apply <code>predict()</code> to the trained model on the new data:</p>
+<span class="co">#&gt;   (Intercept) carat clarity_I1 clarity_IF clarity_SI1 clarity_SI2 clarity_VS1</span>
+<span class="co">#&gt; 1           1  0.23         NA         NA          NA          NA          NA</span>
+<span class="co">#&gt; 2           1  0.21          0          0           1           0           0</span>
+<span class="co">#&gt; 3           1  0.23          0          0           0           0           1</span>
+<span class="co">#&gt; 4           1  0.29          0          0           0           0           0</span>
+<span class="co">#&gt; 5           1  0.31          0          0           0           1           0</span>
+<span class="co">#&gt; 6           1  0.24          0          0           0           0           0</span>
+<span class="co">#&gt;   clarity_VS2 clarity_VVS1 clarity_VVS2 color_D color_E color_F color_G color_H</span>
+<span class="co">#&gt; 1          NA           NA           NA       0       1       0       0       0</span>
+<span class="co">#&gt; 2           0            0            0       0       1       0       0       0</span>
+<span class="co">#&gt; 3           0            0            0       0       1       0       0       0</span>
+<span class="co">#&gt; 4           1            0            0       0       0       0       0       0</span>
+<span class="co">#&gt; 5           0            0            0       0       0       0       0       0</span>
+<span class="co">#&gt; 6           0            0            1       0       0       0       0       0</span>
+<span class="co">#&gt;   color_I color_J cut_Fair cut_Good cut_Ideal cut_Premium cut_VeryGood depth</span>
+<span class="co">#&gt; 1       0       0        0        0         1           0            0  61.5</span>
+<span class="co">#&gt; 2       0       0        0        0         0           1            0    NA</span>
+<span class="co">#&gt; 3       0       0        0        1         0           0            0  56.9</span>
+<span class="co">#&gt; 4       1       0        0        0         0           1            0  62.4</span>
+<span class="co">#&gt; 5       0       1        0        1         0           0            0  63.3</span>
+<span class="co">#&gt; 6       0       1        0        0         0           0            1  62.8</span>
+<span class="co">#&gt;   price table tsdt_20170104 tsdt_20170105    x    y    z</span>
+<span class="co">#&gt; 1   326    55             1             0 3.95 3.98 2.43</span>
+<span class="co">#&gt; 2   326    61             1             0 3.89 3.84 2.31</span>
+<span class="co">#&gt; 3   327    65             1             0 4.05 4.07 2.31</span>
+<span class="co">#&gt; 4   334    58             0             1 4.20 4.23 2.63</span>
+<span class="co">#&gt; 5   335    58             0             1 4.34 4.35 2.75</span>
+<span class="co">#&gt; 6   336    57             0             1 3.94 3.96 2.48</span></code></pre></div>
+<p>Then let's look at when <code>meta</code> is given to data with new elements, whether <code>onehot2sql()</code> will output model.matrix with identical columns as the training data, in order to apply <code>predict()</code> to the trained model on the new data:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">newdata &lt;-<span class="st"> </span>d2[<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>,]
 <span class="co"># newdata has columns with new elements</span>
 newdata[<span class="dv">5</span>, clarity<span class="op">:</span><span class="er">=</span><span class="st">'NEW'</span>]; newdata[<span class="dv">1</span>,tsdt<span class="op">:</span><span class="er">=</span><span class="kw">as.IDate</span>(<span class="st">'2018-05-01'</span>)]
@@ -304,52 +323,49 @@ newdata[, new_col<span class="op">:</span><span class="er">=</span><span class="
 <span class="co"># newdata is lacking a column</span>
 newdata[, cut<span class="op">:</span><span class="er">=</span><span class="ot">NULL</span>]
 <span class="kw">head</span>(newdata)
-<span class="co">#&gt;    carat color clarity depth table price    x    y    z       tsdt new_col</span>
-<span class="co">#&gt; 1:  0.23     E    &lt;NA&gt;  61.5    55   326 3.95 3.98 2.43 2018-05-01       1</span>
-<span class="co">#&gt; 2:  0.21     E     SI1    NA    61   326 3.89 3.84 2.31 2017-01-04       1</span>
-<span class="co">#&gt; 3:  0.23     E     VS1  56.9    65   327 4.05 4.07 2.31 2017-01-04       1</span>
-<span class="co">#&gt; 4:  0.29     I     VS2  62.4    58   334 4.20 4.23 2.63 2017-01-05       1</span>
-<span class="co">#&gt; 5:  0.31     J     NEW  63.3    58   335 4.34 4.35 2.75 2017-01-05       1</span>
+<span class="co">#&gt;    carat color clarity depth table price     x     y     z       tsdt new_col</span>
+<span class="co">#&gt;    &lt;num&gt; &lt;ord&gt;  &lt;char&gt; &lt;num&gt; &lt;num&gt; &lt;int&gt; &lt;num&gt; &lt;num&gt; &lt;num&gt;     &lt;IDat&gt;   &lt;num&gt;</span>
+<span class="co">#&gt; 1:  0.23     E    &lt;NA&gt;  61.5    55   326  3.95  3.98  2.43 2018-05-01       1</span>
+<span class="co">#&gt; 2:  0.21     E     SI1    NA    61   326  3.89  3.84  2.31 2017-01-04       1</span>
+<span class="co">#&gt; 3:  0.23     E     VS1  56.9    65   327  4.05  4.07  2.31 2017-01-04       1</span>
+<span class="co">#&gt; 4:  0.29     I     VS2  62.4    58   334  4.20  4.23  2.63 2017-01-05       1</span>
+<span class="co">#&gt; 5:  0.31     J     NEW  63.3    58   335  4.34  4.35  2.75 2017-01-05       1</span>
 <span class="kw">onehot2sql</span>(newdata, <span class="dt">meta=</span>out2<span class="op">$</span>meta)<span class="op">$</span>model.matrix
+<span class="co">#&gt; Query is created with row unique id named as ROW_KEY</span>
+<span class="co">#&gt; Query is created with input table named as INPUT_TABLE</span>
 <span class="co">#&gt; Warning in onehot2sql(newdata, meta = out2$meta): Following columns are populated with NAs: </span>
 <span class="co">#&gt; cut</span>
-<span class="co">#&gt;   (Intercept) carat clarity_I1 clarity_IF clarity_SI1 clarity_SI2</span>
-<span class="co">#&gt; 1           1  0.23         NA         NA          NA          NA</span>
-<span class="co">#&gt; 2           1  0.21          0          0           1           0</span>
-<span class="co">#&gt; 3           1  0.23          0          0           0           0</span>
-<span class="co">#&gt; 4           1  0.29          0          0           0           0</span>
-<span class="co">#&gt; 5           1  0.31          0          0           0           0</span>
-<span class="co">#&gt;   clarity_VS1 clarity_VS2 clarity_VVS1 clarity_VVS2 color_D color_E</span>
-<span class="co">#&gt; 1          NA          NA           NA           NA       0       1</span>
-<span class="co">#&gt; 2           0           0            0            0       0       1</span>
-<span class="co">#&gt; 3           1           0            0            0       0       1</span>
-<span class="co">#&gt; 4           0           1            0            0       0       0</span>
-<span class="co">#&gt; 5           0           0            0            0       0       0</span>
-<span class="co">#&gt;   color_F color_G color_H color_I color_J cut_Fair cut_Good cut_Ideal</span>
-<span class="co">#&gt; 1       0       0       0       0       0       NA       NA        NA</span>
-<span class="co">#&gt; 2       0       0       0       0       0       NA       NA        NA</span>
-<span class="co">#&gt; 3       0       0       0       0       0       NA       NA        NA</span>
-<span class="co">#&gt; 4       0       0       0       1       0       NA       NA        NA</span>
-<span class="co">#&gt; 5       0       0       0       0       1       NA       NA        NA</span>
-<span class="co">#&gt;   cut_Premium cut_VeryGood depth price table tsdt_20170104 tsdt_20170105</span>
-<span class="co">#&gt; 1          NA           NA  61.5   326    55             0             0</span>
-<span class="co">#&gt; 2          NA           NA    NA   326    61             1             0</span>
-<span class="co">#&gt; 3          NA           NA  56.9   327    65             1             0</span>
-<span class="co">#&gt; 4          NA           NA  62.4   334    58             0             1</span>
-<span class="co">#&gt; 5          NA           NA  63.3   335    58             0             1</span>
-<span class="co">#&gt;      x    y    z</span>
-<span class="co">#&gt; 1 3.95 3.98 2.43</span>
-<span class="co">#&gt; 2 3.89 3.84 2.31</span>
-<span class="co">#&gt; 3 4.05 4.07 2.31</span>
-<span class="co">#&gt; 4 4.20 4.23 2.63</span>
-<span class="co">#&gt; 5 4.34 4.35 2.75</span></code></pre></div>
+<span class="co">#&gt;   (Intercept) carat clarity_I1 clarity_IF clarity_SI1 clarity_SI2 clarity_VS1</span>
+<span class="co">#&gt; 1           1  0.23         NA         NA          NA          NA          NA</span>
+<span class="co">#&gt; 2           1  0.21          0          0           1           0           0</span>
+<span class="co">#&gt; 3           1  0.23          0          0           0           0           1</span>
+<span class="co">#&gt; 4           1  0.29          0          0           0           0           0</span>
+<span class="co">#&gt; 5           1  0.31          0          0           0           0           0</span>
+<span class="co">#&gt;   clarity_VS2 clarity_VVS1 clarity_VVS2 color_D color_E color_F color_G color_H</span>
+<span class="co">#&gt; 1          NA           NA           NA       0       1       0       0       0</span>
+<span class="co">#&gt; 2           0            0            0       0       1       0       0       0</span>
+<span class="co">#&gt; 3           0            0            0       0       1       0       0       0</span>
+<span class="co">#&gt; 4           1            0            0       0       0       0       0       0</span>
+<span class="co">#&gt; 5           0            0            0       0       0       0       0       0</span>
+<span class="co">#&gt;   color_I color_J cut_Fair cut_Good cut_Ideal cut_Premium cut_VeryGood depth</span>
+<span class="co">#&gt; 1       0       0       NA       NA        NA          NA           NA  61.5</span>
+<span class="co">#&gt; 2       0       0       NA       NA        NA          NA           NA    NA</span>
+<span class="co">#&gt; 3       0       0       NA       NA        NA          NA           NA  56.9</span>
+<span class="co">#&gt; 4       1       0       NA       NA        NA          NA           NA  62.4</span>
+<span class="co">#&gt; 5       0       1       NA       NA        NA          NA           NA  63.3</span>
+<span class="co">#&gt;   price table tsdt_20170104 tsdt_20170105    x    y    z</span>
+<span class="co">#&gt; 1   326    55             0             0 3.95 3.98 2.43</span>
+<span class="co">#&gt; 2   326    61             1             0 3.89 3.84 2.31</span>
+<span class="co">#&gt; 3   327    65             1             0 4.05 4.07 2.31</span>
+<span class="co">#&gt; 4   334    58             0             1 4.20 4.23 2.63</span>
+<span class="co">#&gt; 5   335    58             0             1 4.34 4.35 2.75</span></code></pre></div>
 <p>We can see from this example that</p>
 <ol style="list-style-type: decimal">
 <li>any new levels will have value of 0s on all the columns related to that feature.</li>
 <li>any new features will not be in the output model.matrix.</li>
 <li>the entire feature will be imputed with NAs if it is missing in the new data, and warnings will be given.</li>
 </ol>
-<p>We recommend any feature engineering and/or missing imputation work to be done before applying function <code>onehot2sql()</code> to the training data in R. It should be the last step before kicking off the model fitting. And SQL query for feature engineering and/or missing imputation can be placed as a sub-query inside the one-hot query. For example, replacing “INPUT_TABLE” inside <code>out$sql</code> with following sub-query will do one-hot encoding together with missing imputation for feature “clarity”:</p>
+<p>We recommend any feature engineering and/or missing imputation work to be done before applying function <code>onehot2sql()</code> to the training data in R. It should be the last step before kicking off the model fitting. And SQL query for feature engineering and/or missing imputation can be placed as a sub-query inside the one-hot query. For example, replacing &quot;INPUT_TABLE&quot; inside <code>out$sql</code> with following sub-query will do one-hot encoding together with missing imputation for feature &quot;clarity&quot;:</p>
 <pre><code>(SELECT ROW_KEY, [cut], [color], 
   (case when [clarity] IS NULL then 'MISS' else [clarity] end) as [clarity],
   [carat], [depth], [table], [price], [x], [y], [z]
@@ -362,175 +378,283 @@ FROM INPUT_TABLE) AS IMPUTED_TABLE</code></pre>
 <li>We start with transferring raw table from database to R as a data.frame/data.table. There are many packages supporting database connection, we recommend <code>dplyr</code> and <code>DBI</code> here.</li>
 <li>After all feature engineering and missing imputation is done, apply function <code>onehot2sql()</code> to the data.frame/data.table, obtaining the model.matrix and storing the one-hot query.</li>
 <li>Conduct all modeling practices until reaching a final model, then apply function <code>booster2sql()</code> to the final model, producing the XGBoost query for its in-database scoring.</li>
-<li>Modeling in R is done, let’s move to in-database scoring:
+<li>Modeling in R is done, let's move to in-database scoring:
 <ul>
 <li>Execute the one-hot query on the raw table, creating the model-ready table.</li>
 <li>Execute the XGBoost query on the model-ready table, obtaining the model predictions.</li>
 <li>Compare the model prediction in R with the values given by the XGBoost query is always recommended.</li>
 </ul></li>
 </ol>
-<p>Now let’s move back to function <code>booster2sql()</code>. Available arguments are:</p>
+<p>Now let's move back to function <code>booster2sql()</code>. Available arguments are:</p>
 <pre><code>booster2sql(xgbModel, print_progress=FALSE, unique_id=NULL,
             output_file_name=NULL, input_table_name=NULL, input_onehot_query=NULL)</code></pre>
-<p>The model input <code>xgbModel</code> to this function should have a class of <code>xgb.Booster</code>. And <code>print_progress=FALSE</code> controls whether the translating progress should be printed to console. Similarly, <code>unique_id</code> and <code>input_table_name</code> should be given to generate the SQL query. It should be noted that there must be a valid file path for <code>output_file_name</code> to write the query, otherwise the function will not run.</p>
-<p>Let’s try to predict the “price” of diamonds using the other features. In order to demonstrate the generated XGBoost query, we will train the model with <code>max.depth=2</code> and <code>nround=2</code>.</p>
+<p>The model input <code>xgbModel</code> to this function should have a class of <code>xgb.Booster</code>. And <code>print_progress=FALSE</code> controls whether the translating progress should be printed to console. Similarly, <code>unique_id</code> and <code>input_table_name</code> should be given to generate the SQL query. If not given <code>output_file_name</code> to write the query, the output will be printed to console.</p>
+<p>Let's try to predict the &quot;price&quot; of diamonds using the other features. In order to demonstrate the generated XGBoost query, we will train the model with <code>max_depth=2</code> and <code>nrounds=2</code>.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">x &lt;-<span class="st"> </span>out<span class="op">$</span>model.matrix[,<span class="kw">colnames</span>(out<span class="op">$</span>model.matrix)<span class="op">!=</span><span class="st">'price'</span>]
 y &lt;-<span class="st"> </span>out<span class="op">$</span>model.matrix[,<span class="kw">colnames</span>(out<span class="op">$</span>model.matrix)<span class="op">==</span><span class="st">'price'</span>]
-bst &lt;-<span class="st"> </span><span class="kw">xgboost</span>(<span class="dt">data =</span> x,
-               <span class="dt">label =</span> y,
-               <span class="dt">max.depth =</span> <span class="dv">2</span>,
-               <span class="dt">eta =</span> .<span class="dv">3</span>,
-               <span class="dt">nround =</span> <span class="dv">2</span>,
-               <span class="dt">objective =</span> <span class="st">'reg:linear'</span>)
-<span class="co">#&gt; [1]  train-rmse:4095.421143 </span>
-<span class="co">#&gt; [2]  train-rmse:3074.222656</span>
+bst &lt;-<span class="st"> </span><span class="kw">xgboost</span>(<span class="dt">x =</span> x,
+               <span class="dt">y =</span> y,
+               <span class="dt">max_depth =</span> <span class="dv">2</span>,
+               <span class="dt">learning_rate =</span> .<span class="dv">3</span>,
+               <span class="dt">nrounds =</span> <span class="dv">2</span>,
+               <span class="dt">objective =</span> <span class="st">'reg:squarederror'</span>)
 <span class="kw">booster2sql</span>(bst, <span class="dt">output_file_name=</span><span class="st">'xgb.txt'</span>)
-<span class="co">#&gt; query is written to file with row unique id named as ROW_KEY</span>
-<span class="co">#&gt; query is written to file with input table named as MODREADY_TABLE</span></code></pre></div>
+<span class="co">#&gt; Query is created with row unique id named as ROW_KEY</span>
+<span class="co">#&gt; Query is created with input table named as MODREADY_TABLE</span>
+<span class="co">#&gt; Query is written to file</span></code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">cat</span>(<span class="kw">readChar</span>(<span class="st">'xgb.txt'</span>, <span class="kw">file.info</span>(<span class="st">'xgb.txt'</span>)<span class="op">$</span>size))
 <span class="co">#&gt; SELECT  ROW_KEY , 0.5 + SUM(ONETREE) AS XGB_PRED</span>
+
 <span class="co">#&gt; FROM (   </span>
+
 <span class="co">#&gt;  SELECT ROW_KEY ,</span>
-<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.995000005 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 5.53499985 THEN 317.401001</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 5.53499985 THEN 922.349731</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 317.401001 </span><span class="re">END</span><span class="co">)</span>
-<span class="co">#&gt;   WHEN  [carat] &gt;= 0.995000005 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.19499969 THEN 1841.06018</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 7.19499969 THEN 3696.24292</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 1841.06018 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;  (CASE WHEN [carat] &lt; 1 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.629999995 THEN -864.202576</span>
+
+<span class="co">#&gt;   WHEN  [carat] &gt;= 0.629999995 THEN -262.236206</span>
+
+<span class="co">#&gt;   WHEN  [carat] IS NULL THEN -262.236206 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;   WHEN  [carat] &gt;= 1 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.21000004 THEN 666.653259</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.21000004 THEN 2524.86694</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2524.86694 </span><span class="re">END</span><span class="co">)</span>
+
 <span class="co">#&gt;   WHEN  [carat] IS NULL THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 5.53499985 THEN 317.401001</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 5.53499985 THEN 922.349731</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 317.401001 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  MODREADY_TABLE </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.21000004 THEN 666.653259</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.21000004 THEN 2524.86694</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2524.86694 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  MODREADY_TABLE </span>
+
 <span class="co">#&gt;  UNION ALL </span>
+
 <span class="co">#&gt;  </span>
+
 <span class="co">#&gt;  SELECT ROW_KEY ,</span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 6.69499969 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.824999988 THEN 289.332123</span>
-<span class="co">#&gt;   WHEN  [carat] &gt;= 0.824999988 THEN 1056.4021</span>
-<span class="co">#&gt;   WHEN  [carat] IS NULL THEN 289.332123 </span><span class="re">END</span><span class="co">)</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 6.69499969 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.65499973 THEN 1814.65881</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 7.65499973 THEN 3217.57129</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 1814.65881 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 6.69999981 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.829999983 THEN -536.597656</span>
+
+<span class="co">#&gt;   WHEN  [carat] &gt;= 0.829999983 THEN 229.944595</span>
+
+<span class="co">#&gt;   WHEN  [carat] IS NULL THEN 229.944595 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 6.69999981 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.63999987 THEN 984.336365</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.63999987 THEN 2366.83447</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2366.83447 </span><span class="re">END</span><span class="co">)</span>
+
 <span class="co">#&gt;   WHEN  [y] IS NULL THEN </span>
-<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.824999988 THEN 289.332123</span>
-<span class="co">#&gt;   WHEN  [carat] &gt;= 0.824999988 THEN 1056.4021</span>
-<span class="co">#&gt;   WHEN  [carat] IS NULL THEN 289.332123 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  MODREADY_TABLE   </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.63999987 THEN 984.336365</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.63999987 THEN 2366.83447</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2366.83447 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  MODREADY_TABLE   </span>
+
 <span class="co">#&gt; ) AS TREES_TABLE GROUP BY  ROW_KEY</span></code></pre></div>
 <p>We can see that each <code>SELECT ... AS ONETREE</code> section inside the XGBoost query is composed of nested case when statement, providing scores along a tree structure. And each of these sections represents one round/iteration of the XGBoost model. Values for the splits and scores within the query are from the <code>xgb.dump()</code> of the model without any rounding:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">xgb.dump</span>(bst)
-<span class="co">#&gt;  [1] &quot;booster[0]&quot;                             </span>
-<span class="co">#&gt;  [2] &quot;0:[f1&lt;0.995000005] yes=1,no=2,missing=1&quot;</span>
-<span class="co">#&gt;  [3] &quot;1:[f25&lt;5.53499985] yes=3,no=4,missing=3&quot;</span>
-<span class="co">#&gt;  [4] &quot;3:leaf=317.401001&quot;                      </span>
-<span class="co">#&gt;  [5] &quot;4:leaf=922.349731&quot;                      </span>
-<span class="co">#&gt;  [6] &quot;2:[f25&lt;7.19499969] yes=5,no=6,missing=5&quot;</span>
-<span class="co">#&gt;  [7] &quot;5:leaf=1841.06018&quot;                      </span>
-<span class="co">#&gt;  [8] &quot;6:leaf=3696.24292&quot;                      </span>
-<span class="co">#&gt;  [9] &quot;booster[1]&quot;                             </span>
-<span class="co">#&gt; [10] &quot;0:[f25&lt;6.69499969] yes=1,no=2,missing=1&quot;</span>
-<span class="co">#&gt; [11] &quot;1:[f1&lt;0.824999988] yes=3,no=4,missing=3&quot;</span>
-<span class="co">#&gt; [12] &quot;3:leaf=289.332123&quot;                      </span>
-<span class="co">#&gt; [13] &quot;4:leaf=1056.4021&quot;                       </span>
-<span class="co">#&gt; [14] &quot;2:[f25&lt;7.65499973] yes=5,no=6,missing=5&quot;</span>
-<span class="co">#&gt; [15] &quot;5:leaf=1814.65881&quot;                      </span>
-<span class="co">#&gt; [16] &quot;6:leaf=3217.57129&quot;</span></code></pre></div>
-<p>It should be noted that model prediction calculated by adding up the scores provided by <code>xgb.dump()</code>, is different from that by applying <code>predict()</code> to the model directly. It is a rounding difference thus extremely insignificant. But since the XGBoost query is generated with scores from <code>xgb.dump</code>, this difference will still be there between the in-database scoring and the R’s <code>predict()</code> of the model.</p>
-<p>There is one last argument of <code>booster2sql()</code> we haven’t talked about, i.e., <code>input_onehot_query</code>. Here we can input the one-hot query generated by <code>onehot2sql()</code>, which will be used as sub-query replacing “MODREADY_TABLE” within the XGBoost query. In this way, the XGBoost query can be executed on the raw table, producing the model predictions directly.</p>
+<span class="co">#&gt;  [1] &quot;booster[0]&quot;                                </span>
+<span class="co">#&gt;  [2] &quot;0:[carat&lt;1] yes=1,no=2,missing=2&quot;          </span>
+<span class="co">#&gt;  [3] &quot;1:[carat&lt;0.629999995] yes=3,no=4,missing=4&quot;</span>
+<span class="co">#&gt;  [4] &quot;3:leaf=-864.202576&quot;                        </span>
+<span class="co">#&gt;  [5] &quot;4:leaf=-262.236206&quot;                        </span>
+<span class="co">#&gt;  [6] &quot;2:[y&lt;7.21000004] yes=5,no=6,missing=6&quot;     </span>
+<span class="co">#&gt;  [7] &quot;5:leaf=666.653259&quot;                         </span>
+<span class="co">#&gt;  [8] &quot;6:leaf=2524.86694&quot;                         </span>
+<span class="co">#&gt;  [9] &quot;booster[1]&quot;                                </span>
+<span class="co">#&gt; [10] &quot;0:[y&lt;6.69999981] yes=1,no=2,missing=2&quot;     </span>
+<span class="co">#&gt; [11] &quot;1:[carat&lt;0.829999983] yes=3,no=4,missing=4&quot;</span>
+<span class="co">#&gt; [12] &quot;3:leaf=-536.597656&quot;                        </span>
+<span class="co">#&gt; [13] &quot;4:leaf=229.944595&quot;                         </span>
+<span class="co">#&gt; [14] &quot;2:[y&lt;7.63999987] yes=5,no=6,missing=6&quot;     </span>
+<span class="co">#&gt; [15] &quot;5:leaf=984.336365&quot;                         </span>
+<span class="co">#&gt; [16] &quot;6:leaf=2366.83447&quot;</span></code></pre></div>
+<p>It should be noted that model prediction calculated by adding up the scores provided by <code>xgb.dump()</code>, is different from that by applying <code>predict()</code> to the model directly. It is a rounding difference thus extremely insignificant. But since the XGBoost query is generated with scores from <code>xgb.dump</code>, this difference will still be there between the in-database scoring and the R's <code>predict()</code> of the model.</p>
+<p>There is one last argument of <code>booster2sql()</code> we haven't talked about, i.e., <code>input_onehot_query</code>. Here we can input the one-hot query generated by <code>onehot2sql()</code>, which will be used as sub-query replacing &quot;MODREADY_TABLE&quot; within the XGBoost query. In this way, the XGBoost query can be executed on the raw table, producing the model predictions directly.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">booster2sql</span>(bst, <span class="dt">output_file_name=</span><span class="st">'onehot-xgb.txt'</span>, <span class="dt">input_onehot_query=</span>out<span class="op">$</span>sql)
-<span class="co">#&gt; query is written to file with row unique id named as ROW_KEY</span></code></pre></div>
+<span class="co">#&gt; Query is created with row unique id named as ROW_KEY</span>
+<span class="co">#&gt; Query is written to file</span></code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">cat</span>(<span class="kw">readChar</span>(<span class="st">'onehot-xgb.txt'</span>, <span class="kw">file.info</span>(<span class="st">'onehot-xgb.txt'</span>)<span class="op">$</span>size))
 <span class="co">#&gt; SELECT  ROW_KEY , 0.5 + SUM(ONETREE) AS XGB_PRED</span>
+
 <span class="co">#&gt; FROM (   </span>
+
 <span class="co">#&gt;  SELECT ROW_KEY ,</span>
-<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.995000005 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 5.53499985 THEN 317.401001</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 5.53499985 THEN 922.349731</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 317.401001 </span><span class="re">END</span><span class="co">)</span>
-<span class="co">#&gt;   WHEN  [carat] &gt;= 0.995000005 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.19499969 THEN 1841.06018</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 7.19499969 THEN 3696.24292</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 1841.06018 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;  (CASE WHEN [carat] &lt; 1 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.629999995 THEN -864.202576</span>
+
+<span class="co">#&gt;   WHEN  [carat] &gt;= 0.629999995 THEN -262.236206</span>
+
+<span class="co">#&gt;   WHEN  [carat] IS NULL THEN -262.236206 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;   WHEN  [carat] &gt;= 1 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.21000004 THEN 666.653259</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.21000004 THEN 2524.86694</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2524.86694 </span><span class="re">END</span><span class="co">)</span>
+
 <span class="co">#&gt;   WHEN  [carat] IS NULL THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 5.53499985 THEN 317.401001</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 5.53499985 THEN 922.349731</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 317.401001 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  ( </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.21000004 THEN 666.653259</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.21000004 THEN 2524.86694</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2524.86694 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  ( </span>
+
 <span class="co">#&gt; SELECT ROW_KEY, [carat], [depth], [table], [price], [x], [y], [z], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Fair' then 1 else 0 end) AS [cut_Fair], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Good' then 1 else 0 end) AS [cut_Good], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Very Good' then 1 else 0 end) AS [cut_VeryGood], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Premium' then 1 else 0 end) AS [cut_Premium], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Ideal' then 1 else 0 end) AS [cut_Ideal], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'D' then 1 else 0 end) AS [color_D], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'E' then 1 else 0 end) AS [color_E], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'F' then 1 else 0 end) AS [color_F], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'G' then 1 else 0 end) AS [color_G], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'H' then 1 else 0 end) AS [color_H], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'I' then 1 else 0 end) AS [color_I], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'J' then 1 else 0 end) AS [color_J], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'I1' then 1 else 0 end) AS [clarity_I1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'SI2' then 1 else 0 end) AS [clarity_SI2], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'SI1' then 1 else 0 end) AS [clarity_SI1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VS2' then 1 else 0 end) AS [clarity_VS2], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VS1' then 1 else 0 end) AS [clarity_VS1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VVS2' then 1 else 0 end) AS [clarity_VVS2], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VVS1' then 1 else 0 end) AS [clarity_VVS1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'IF' then 1 else 0 end) AS [clarity_IF] </span>
+
 <span class="co">#&gt; FROM INPUT_TABLE </span>
+
 <span class="co">#&gt; ) AS MODREADY_TABLE  </span>
+
 <span class="co">#&gt;  UNION ALL </span>
+
 <span class="co">#&gt;  </span>
+
 <span class="co">#&gt;  SELECT ROW_KEY ,</span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 6.69499969 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.824999988 THEN 289.332123</span>
-<span class="co">#&gt;   WHEN  [carat] &gt;= 0.824999988 THEN 1056.4021</span>
-<span class="co">#&gt;   WHEN  [carat] IS NULL THEN 289.332123 </span><span class="re">END</span><span class="co">)</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 6.69499969 THEN </span>
-<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.65499973 THEN 1814.65881</span>
-<span class="co">#&gt;   WHEN  [y] &gt;= 7.65499973 THEN 3217.57129</span>
-<span class="co">#&gt;   WHEN  [y] IS NULL THEN 1814.65881 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 6.69999981 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.829999983 THEN -536.597656</span>
+
+<span class="co">#&gt;   WHEN  [carat] &gt;= 0.829999983 THEN 229.944595</span>
+
+<span class="co">#&gt;   WHEN  [carat] IS NULL THEN 229.944595 </span><span class="re">END</span><span class="co">)</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 6.69999981 THEN </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.63999987 THEN 984.336365</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.63999987 THEN 2366.83447</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2366.83447 </span><span class="re">END</span><span class="co">)</span>
+
 <span class="co">#&gt;   WHEN  [y] IS NULL THEN </span>
-<span class="co">#&gt;  (CASE WHEN [carat] &lt; 0.824999988 THEN 289.332123</span>
-<span class="co">#&gt;   WHEN  [carat] &gt;= 0.824999988 THEN 1056.4021</span>
-<span class="co">#&gt;   WHEN  [carat] IS NULL THEN 289.332123 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  ( </span>
+
+<span class="co">#&gt;  (CASE WHEN [y] &lt; 7.63999987 THEN 984.336365</span>
+
+<span class="co">#&gt;   WHEN  [y] &gt;= 7.63999987 THEN 2366.83447</span>
+
+<span class="co">#&gt;   WHEN  [y] IS NULL THEN 2366.83447 </span><span class="re">END</span><span class="co">) </span><span class="re">END</span><span class="co">) AS ONETREE FROM  ( </span>
+
 <span class="co">#&gt; SELECT ROW_KEY, [carat], [depth], [table], [price], [x], [y], [z], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Fair' then 1 else 0 end) AS [cut_Fair], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Good' then 1 else 0 end) AS [cut_Good], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Very Good' then 1 else 0 end) AS [cut_VeryGood], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Premium' then 1 else 0 end) AS [cut_Premium], </span>
+
 <span class="co">#&gt; (case when [cut] IS NULL then NULL when [cut] = 'Ideal' then 1 else 0 end) AS [cut_Ideal], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'D' then 1 else 0 end) AS [color_D], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'E' then 1 else 0 end) AS [color_E], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'F' then 1 else 0 end) AS [color_F], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'G' then 1 else 0 end) AS [color_G], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'H' then 1 else 0 end) AS [color_H], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'I' then 1 else 0 end) AS [color_I], </span>
+
 <span class="co">#&gt; (case when [color] IS NULL then NULL when [color] = 'J' then 1 else 0 end) AS [color_J], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'I1' then 1 else 0 end) AS [clarity_I1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'SI2' then 1 else 0 end) AS [clarity_SI2], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'SI1' then 1 else 0 end) AS [clarity_SI1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VS2' then 1 else 0 end) AS [clarity_VS2], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VS1' then 1 else 0 end) AS [clarity_VS1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VVS2' then 1 else 0 end) AS [clarity_VVS2], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'VVS1' then 1 else 0 end) AS [clarity_VVS1], </span>
+
 <span class="co">#&gt; (case when [clarity] IS NULL then NULL when [clarity] = 'IF' then 1 else 0 end) AS [clarity_IF] </span>
+
 <span class="co">#&gt; FROM INPUT_TABLE </span>
+
 <span class="co">#&gt; ) AS MODREADY_TABLE    </span>
+
 <span class="co">#&gt; ) AS TREES_TABLE GROUP BY  ROW_KEY</span></code></pre></div>
 <p>As processing time and query size grow exponentially with <code>max.depth</code>, linearly with <code>nround</code>, this approach of combining the one-hot query and the XGBoost query together should be used for only simple models.</p>
 </div>
 <div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p><a href="https://xgboost.readthedocs.io/en/latest/R-package/discoverYourData.html">Understand your dataset with XGBoost. </a><a href="#fnref1">↩</a></p></li>
-<li id="fn2"><p><a href="https://medium.com/data-design/ensembles-of-tree-based-models-why-correlated-features-do-not-trip-them-and-why-na-matters-7658f4752e1b">Ensembles of tree-based models: why correlated features do not trip them and why NA matters. </a><a href="#fnref2">↩</a></p></li>
-<li id="fn3"><p><a href="https://datascience.stackexchange.com/questions/12554/does-xgboost-handle-multicollinearity-by-itself">StackExchange: Does XGBoost handle multicollinearity by itself? </a><a href="#fnref3">↩</a></p></li>
-<li id="fn4"><p><a href="https://github.com/dmlc/xgboost/issues/21">GitHub Issue: What are the ways of treatng missing values in XGboost? </a><a href="#fnref4">↩</a></p></li>
+<li id="fn1"><p><a href="https://medium.com/data-design/ensembles-of-tree-based-models-why-correlated-features-do-not-trip-them-and-why-na-matters-7658f4752e1b">Ensembles of tree-based models: why correlated features do not trip them and why NA matters. </a><a href="#fnref1">↩</a></p></li>
+<li id="fn2"><p><a href="https://datascience.stackexchange.com/questions/12554/does-xgboost-handle-multicollinearity-by-itself">StackExchange: Does XGBoost handle multicollinearity by itself? </a><a href="#fnref2">↩</a></p></li>
+<li id="fn3"><p><a href="https://github.com/dmlc/xgboost/issues/21">GitHub Issue: What are the ways of treatng missing values in XGboost? </a><a href="#fnref3">↩</a></p></li>
 </ol>
 </div>
 
+
+
+<!-- code folding -->
 
 
 <!-- dynamically load mathjax for compatibility with self-contained -->
